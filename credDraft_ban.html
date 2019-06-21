@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Credibility of Social Media Sources</title>
+</head>
+<body>
+<svg width="960" height="500"></svg>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="d3.layout.cloud.js"></script>
+<script src="metricCalc.js"></script>
+<script src="/node_modules/d3-tip/index.js"></script>
+<script src="node_modules/requirejs/require.js"></script>
+<script src="node_modules/flesch/index.js"></script>
+<meta charset="utf-8">
+<style>
+
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+svg {
+  font: 10px sans-serif;
+}
+
+.background path {
+  fill: none;
+  stroke: #ddd;
+  shape-rendering: crispEdges;
+}
+
+.foreground path {
+  fill: none;
+  stroke: steelblue;
+}
+
+.brush .extent {
+  fill-opacity: .3;
+  stroke: #fff;
+  shape-rendering: crispEdges;
+}
+
+.axis line,
+.axis path {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.axis text {
+  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+  cursor: move;
+}
+
+
+
+.buttonprev button {
+          left: 170px;
+          position: absolute;
+          top: 90px;
+          width: 80px;
+        }
+
+.buttonex button {
+          left: 670px;
+          position: absolute;
+          top: 90px;
+          width: 80px;
+        }
+
+.buttonreset button {
+          left: 800px;
+          position: absolute;
+          top: 90px;
+          width: 80px;
+        }
+
+.buttonapply button {
+          left: 320px;
+          position: absolute;
+          top: 50px;
+          width: 100px;
+          height: 80px;
+        }
+
+.buttondefault button {
+          left: 520px;
+          position: absolute;
+          top: 50px;
+          width: 100px;
+          height: 80px;
+        }
+
+.button5 button {
+          left: 400px;
+          position: absolute;
+          top: 750px;
+          width: 50px;
+        }
+
+.button10 button {
+          left: 500px;
+          position: absolute;
+          top: 750px;
+          width: 50px;
+        }
+
+.button25 button {
+          left: 600px;
+          position: absolute;
+          top: 750px;
+          width: 50px;
+        }
+
+.button50 button {
+          left: 700px;
+          position: absolute;
+          top: 750px;
+          width: 50px;
+        }
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+  pointer-events: none;
+  width: 400px;
+  height: 150px;
+}
+
+.d3-tip.e:after {
+  content: "\25C0";
+  /*margin: -4px 0 0 0;*/
+  top: 50%;
+  left: -500px;
+}
+
+</style>
+<div class = "buttonprev" id="previous">
+        <button>Previous</button>
+      </div>
+<div class = "buttonex" id="next">
+        <button>Next</button>
+      </div>
+<div class = "buttonapply" id="apply">
+        <button>Apply</button>
+      </div>
+<div class = "buttondefault" id="default">
+        <button>Default</button>
+      </div>
+<div class = "buttonreset" id="reset">
+        <button>Reset</button>
+      </div>
+<div class = "button5" id="button5">
+        <button>5</button>
+      </div>
+<div class = "button10" id="button10">
+        <button>10</button>
+      </div>
+<div class = "button25" id="button25">
+        <button>25</button>
+      </div>
+<div class = "button50" id="button50">
+        <button>50</button>
+      </div>
+<script>
+
+	 var width = 50;
+    var height = 400;
+    var radius = 10;
+    var radiusSmall = 5;
+    var margin = 150;
+    
+    var y1 = margin;
+    var y2 = height - margin;
+    var x = width / 2;
+    var mainWeightx = 600;
+    var mainWeighty = 275;
+    var factorWeightx = 1100;
+
+    var authorWeight = 0.33;
+	var tweetWeight = 0.33;
+	var writingWeight = 0.33;
+
+	var followersWeight = 0.25;
+	var picWeight = 0.25;
+	var descripWeight = 0.25;
+	var verWeight = 0.25;
+
+	var urlWeight = 0.33;
+	var likeWeight = 0.33;
+	var retweetWeight = 0.33;
+
+	var grammarWeight = 0.33;
+	var complexWeight = 0.33;
+	var spellingWeight = 0.33;
+
+	var listOfWords = [];
+
+  var g;
+  var h;
+  var i;
+  var blueLine1;
+  var blueLine2;
+
+	var canvas = d3.select("svg")
+				.attr("width", 1600)
+				.attr("height", 800)
+      .datum({
+        x: width / 2,
+        y: height / 2,
+        mainWeightx: 600,
+        mainWeighty: 275,
+        y2: (height / 2)+200,
+        y3: (height / 2)+400,
+        mainWeighty2: mainWeighty+200,
+        mainWeighty3: mainWeighty+400,
+        factorWeightx: 1100
+      })
+
+   canvas.append("rect")
+    .attr("width", "100%")
+    .attr("height", "100%")
+    .attr("fill", "#ffffcc");
+
+  var dataset;
+  var dataCopy1;
+  var dataCopy2;
+  var dataCopy3;
+  var dataSlice;
+  var set1;
+  var set2;
+  var set3;
+  var sliceMark = 0;
+  var loopNumber = 25;
+  var results = 0;
+  var numOLikes = 0;
+  var numORet = 0;
+  var numOLoc = 0;
+  var numOImage = 0;
+  var numODesc = 0;
+  var numOVer = 0;
+  var numOUrl = 0;
+  var numOFol = 0;
+  var mostLikes = 0;
+  var mostRet = 0;
+  var mostFol = 0;
+
+	d3.json("../../travelBan19.json", function(err, data) { 
+  if(err) console.log(err);
+
+  dataset = data.file.posts;
+  //var dataset = d3.values(data.file.posts);
+  //var dataset = data;
+  console.log(dataset);
+  var IDLoop = 0;
+
+  var authorMin = 0.1;
+var tweetMin = 0.1;
+var writingMin = 0.;
+
+          var syllable = 0;
+          var capitals = 0;
+          var fullStops = 0;
+          var punctuation = 0;
+
+   dataset.forEach(function (d) {
+ 
+        d.Favourites = d.Favourites;
+        d.Default = d["Has Default Profile Image"];  
+        d.Followers = d["Number of followers"];
+        d.Timestamp = d.Timestamp;
+        d.Tweet = d.Tweet;
+        d.Url = d["Tweet URL"]
+        d.Description = d["User Description"];
+        d.Location = d["User Location"];
+        d.Verified = d["Verified User"];
+        d.Retweets = d.Retweets;
+        d.Username = d.Username;
+        d.Id = IDLoop;
+        if(d.Url[0] != undefined)
+        {
+          d.Url = d.Url[0].url;
+        } 
+        else
+        {
+          d.Url = "NA";
+        }
+        d.Author = Math.round(authorCred(d.Followers, d.Default, d.Description, d.Verified) * 100) / 100;
+        d.Post = Math.round(tweetCred(d.Url, d.Favourites, d.Retweets) * 100) / 100;
+
+
+          var wordCloudList = (d.Tweet).split(" ");
+          var numWords = wordCloudList.length;
+          var syllable = 0;
+          var capitals = 0;
+          var fullStops = 0;
+          var punctuation = 0;
+          var hashtags = 0;
+
+          for (var i =0; i<numWords; i++)
+          {
+            var currentWord = wordCloudList[i];
+            if (currentWord[0] == "#" || currentWord[0] == "@" || currentWord == "RT" || currentWord.indexOf("http") != -1)
+            {
+              numWords --;
+            }
+            else
+            {
+              var letters = currentWord.length;
+              syllable += Math.round(letters/3); 
+              if (currentWord[letters-1] == ".")
+              {
+                fullStops++;
+              }
+
+              for (var x = 0; x<letters; x++)
+              {
+                var uppercase = "ABCDEFGHIJKLMNOPQRSTUVXYZ";
+                if (uppercase.indexOf(currentWord[x]) != -1)
+                {
+                  capitals++;
+                }
+                else if (currentWord[x] == ";" || currentWord[x] == "?" || currentWord[x] == "'" || currentWord[x] == ";" || currentWord[x] == "-")
+                {
+                  punctuation++;
+                }
+              }
+            }
+          }
+
+            var spelling = 3;
+            grammar = 5;
+            if (capitals < 0 || capitals > fullStops+4)
+            {
+              grammar --;
+            }
+            if (fullStops == 0)
+            {
+              grammar --;
+            }
+            if (numWords <  5)
+            {
+              grammar --;
+            }
+            if (punctuation < 2 || punctuation > 8)
+            {
+              grammar --;
+            }
+            var complexity = flesch({
+               sentence: 1+fullStops,
+              word: numWords,
+              syllable: syllable
+            });
+
+            complexity = 5 - Math.round(complexity/25);
+
+            d.Spelling = spelling;
+            d.Grammar = grammar;
+            d.Complexity = complexity;
+
+            d.Writing = Math.round(writingQuality(d.Spelling, d.Grammar, d.Complexity) * 100)/100;
+            d.Cred = Math.round(overallCred(d.Author, d.Post, d.Writing)*100)/100;
+      // console.log(IDLoop);
+        numOLikes +=  d.Favourites;
+        numORet += d.Retweets;
+        if (d.Location != "")
+        {
+          numOLoc ++;
+        }
+        if (d.Default != true)
+        {
+          numOImage ++;
+        }
+        if  (d.Description != "")
+        {
+          numODesc ++;
+        }
+        if (d.Verified != false)
+        {
+          numOVer ++;
+        }
+        if (d.Url != "NA")
+        {
+          numOUrl ++;
+        }
+        numOFol += d.Followers;
+        if (d.Favourites > mostLikes)
+        {
+          mostLikes = d.Favourites;
+        }
+        if (d.Retweets > mostRet)
+        {
+          mostRet = d.Retweets;
+        }
+        if (d.Followers > mostFol)
+        {
+          mostFol = d.Followers;
+        }
+        IDLoop ++;
+
+      });
+
+   function metRecalc()
+   {
+    dataset.forEach(function (d) {
+        d.Author = Math.round(authorCred(d.Followers, d.Default, d.Description, d.Verified)*100)/100;
+        d.Post = Math.round(tweetCred(d.Url, d.Favourites, d.Retweets)*100)/100;
+        d.Writing = Math.round(writingQuality(d.Spelling, d.Grammar, d.Complexity)*100)/100;
+        d.Cred = overallCred(d.Author, d.Post, d.Writing);
+    });
+   }
+
+  datadata = dataset;
+  dataCopy1 = dataset.filter(function(d) { return (d.Author > authorMin && d.Id > results && d.Id < (results+loopNumber))});
+  dataCopy2 = dataset.filter(function(d) { return (d.Tweet > tweetMin && d.Id > results && d.Id < (results+loopNumber))});
+  dataCopy3 = dataset;
+  console.log(listOfWords);
+      // function drawCircles()
+      // {
+        //dataSlice = dataset.slice(sliceMark, sliceMark+results);
+  //set1 = dataCopy1.slice(sliceMark, sliceMark+results);
+  // set1 = dataCopy1.slice(sliceMark, sliceMark+results);
+  // set2 = dataCopy2.slice(sliceMark, sliceMark+results);
+  // set3 = dataCopy3.slice(sliceMark, sliceMark+results);
+      //   sliceMark += results;
+        //console.log(set1);
+
+    function drawCircles(){
+        tip = d3.tip().attr('class', 'd3-tip').html(function(d) { return (d.Username + ": " + d.Tweet + "\n" + "Location:" + d.Location + '\n' + "Time: " + d.Timestamp + '\n' + "Retweets: " + d.Retweets + '\n' + "Likes: " + d.Favourites + '\n' + "URL: " + d.Url + " " + '\n' + "Author Credibility: " + (d.Author*100) + "%" + '\n' + "Tweet Credibility: " + (d.Post*100) + "%" + '\n' + "Quality of Writing: " + (d.Writing*100) + "%" + '\n' + "Overall Credibility: " + d.Cred + "%") });
+        canvas.call(tip);
+        var circles = canvas.append("g")
+          .selectAll("circle")
+          .data(datadata)
+          .enter();
+        g = circles.append("circle")
+          .filter(function(d) { return (d.Author > authorMin && d.Id > results && d.Id < (results+loopNumber))})
+          .attr("class", "node1")
+          .attr("cx", function(d){return 70+(800*d.Author)})
+          .attr("cy", 200)
+          .attr("r", 30)
+          .attr("fill", "#42f459")
+          .attr("stroke", "black")
+          .attr("stroke-width", 2.5)
+          .on("mouseover", mouseOn)
+          .on("mouseout", mouseGreenOff)
+          .on('click', clickHandler);
+
+      h = circles.append("circle")
+          .filter(function(d) { return (d.Post > tweetMin && d.Id > results && d.Id < (results+loopNumber))})
+          .attr("class", "node2")
+          .attr("cx", function(d){return 70+(800*d.Post)})
+          .attr("cy", 400)
+          .attr("r", 30)
+          .attr("fill", "#f44b42")
+          .attr("stroke", "black")
+          .attr("stroke-width", 2.5)
+          .on("mouseover", mouseOn)
+          .on("mouseout", mouseRedOff)
+          .on('click', clickHandler);
+
+       i = circles.append("circle")
+          .filter(function(d) { return (d.Writing > writingMin && d.Id > results && d.Id < (results+loopNumber))})
+          .attr("class", "node3")
+          .attr("cx", function(d){return 70+(800*d.Writing)})
+          .attr("cy", 600)
+          .attr("r", 30)
+          .attr("fill", "#a0a0a0")
+          .attr("stroke", "black")
+          .attr("stroke-width", 2.5)
+          .on("mouseover", mouseOn)
+          .on("mouseout", mouseGreyOff)
+          .on('click', clickHandler);
+
+        // console.log("Total Tweets: " + IDLoop);
+        // console.log("Total Likes: " + numOLikes);
+        // console.log("Total Retweets: " + numORet);
+        // console.log("Total Locations: " + numOLoc);
+        // console.log("Total Non-Default Images: " + numOImage);
+        // console.log("Total User Descriptons: " + numODesc);
+        // console.log("Total Verified Users: " + numOVer);
+        // console.log("Total URLs: " + numOUrl);
+        // console.log("Total Followers: " + numOFol);
+        // console.log("Most Likes on a Tweet: " + mostLikes);
+        // console.log("Most Retweets on a Tweet: " + mostRet);
+        // console.log("Most Followers on a Tweet: " + mostFol);
+
+       d3.select("#previous button").on("click", function() { 
+        if (results != 0) 
+        {
+          g.remove(); 
+          h.remove(); 
+          i.remove();
+          if (blueLine1 != undefined)
+          {
+            blueLine1.remove();
+          }
+          if (blueLine2 != undefined)
+          {
+            blueLine2.remove();
+          }
+          tip.hide();
+          results -= loopNumber; 
+          drawCircles();
+        };
+        });
+       d3.select("#next button").on("click", function() { g.remove(); h.remove(); i.remove(); if (blueLine1 != undefined)
+          {
+            blueLine1.remove();
+          }
+          if (blueLine2 != undefined)
+          {
+            blueLine2.remove();
+          } 
+          tip.hide();
+          results += loopNumber; drawCircles(); }); 
+       d3.select("#reset button").on("click", function() { 
+          if (blueLine1 != undefined)
+          {
+            blueLine1.remove();
+          }
+          if (blueLine2 != undefined)
+          {
+            blueLine2.remove();
+          } 
+          tip.hide();});      
+       d3.select("#apply button").on("click", 
+        function() { 
+          if (checkWeights() == true)
+          {
+            g.remove(); 
+            h.remove();
+            i.remove();
+            if (blueLine1 != undefined)
+            {
+              blueLine1.remove();
+            }
+            if (blueLine2 != undefined)
+            {
+              blueLine2.remove();
+            }
+            tip.hide();
+            metRecalc();
+            drawCircles();
+          } });
+       d3.select("#default button").on("click", function() { defaultWeights(); });
+       d3.select("#button5 button").on("click", function() { loopNumber = 5; g.remove(); h.remove(); i.remove(); if (blueLine1 != undefined)
+          {
+            blueLine1.remove();
+          }
+          if (blueLine2 != undefined)
+          {
+            blueLine2.remove();
+          } 
+          tip.hide();
+          drawCircles();});
+       d3.select("#button10 button").on("click", function() { loopNumber = 10; g.remove(); h.remove(); i.remove(); if (blueLine1 != undefined)
+          {
+            blueLine1.remove();
+          }
+          if (blueLine2 != undefined)
+          {
+            blueLine2.remove();
+          } 
+          tip.hide();
+          drawCircles();});
+       d3.select("#button25 button").on("click", function() { loopNumber = 25; g.remove(); h.remove(); i.remove(); if (blueLine1 != undefined)
+          {
+            blueLine1.remove();
+          }
+          if (blueLine2 != undefined)
+          {
+            blueLine2.remove();
+          } 
+          tip.hide();
+          drawCircles();});
+       d3.select("#button50 button").on("click", function() { loopNumber = 50; g.remove(); h.remove(); i.remove(); if (blueLine1 != undefined)
+          {
+            blueLine1.remove();
+          }
+          if (blueLine2 != undefined)
+          {
+            blueLine2.remove();
+          } 
+          tip.hide();
+          drawCircles();});
+      }
+      drawCircles();
+    });
+
+ // Create Event Handlers for mouse
+      function mouseOn(d, i) {  // Add interactivity
+
+            // Use D3 to select element, change color and size
+            d3.select(this).attr({
+              fill: "#42f4ee"
+            });
+       }
+
+      function mouseGreenOff(d, i) {
+            // Use D3 to select element, change color back to normal
+            d3.select(this).attr({
+              fill: "#42f459"
+            });
+
+          }
+
+      function mouseRedOff(d, i) {
+            // Use D3 to select element, change color back to normal
+            d3.select(this).attr({
+              fill: "#f44b42"
+            });
+
+          }
+
+      function mouseGreyOff(d, i) {
+            // Use D3 to select element, change color back to normal
+            d3.select(this).attr({
+              fill: "#a0a0a0"
+            });
+
+      }
+
+       function clickHandler (d)
+        {
+          if (blueLine1 != undefined)
+          {
+            blueLine1.remove();
+          }
+          if (blueLine2 != undefined)
+          {
+            blueLine2.remove();
+          }
+          tip.show(d);
+          d3.select(this).attr("fill", "#42f4ee");
+          var selected = canvas.selectAll("circle").filter(function(e) {
+            return e.Id === d.Id;
+          })
+          if (d3.select(selected[0][0]).attr("cx") != undefined &&
+            d3.select(selected[0][1]).attr("cx") != undefined &&
+            d3.select(selected[0][0]).attr("cy") != undefined &&
+            d3.select(selected[0][1]).attr("cy") != undefined)
+          {
+            blueLine1 = canvas.append("line")
+              .attr("x1", d3.select(selected[0][0]).attr("cx"))
+              .attr("x2", d3.select(selected[0][1]).attr("cx"))
+              .attr("y1", d3.select(selected[0][0]).attr("cy"))
+              .attr("y2", d3.select(selected[0][1]).attr("cy"))
+              .attr("stroke", "#42f4ee")
+              .attr("stroke-width", 2)
+          }
+          if (d3.select(selected[0][1]).attr("cx") != undefined &&
+            d3.select(selected[0][2]).attr("cx") != undefined &&
+            d3.select(selected[0][1]).attr("cy") != undefined &&
+            d3.select(selected[0][2]).attr("cy") != undefined)
+          {
+          blueLine2 = canvas.append("line")
+            .attr("x1", d3.select(selected[0][1]).attr("cx"))
+            .attr("x2", d3.select(selected[0][2]).attr("cx"))
+            .attr("y1", d3.select(selected[0][1]).attr("cy"))
+            .attr("y2", d3.select(selected[0][2]).attr("cy"))
+            .attr("stroke", "#42f4ee")
+            .attr("stroke-width", 2)
+          }
+        }
+
+  var resultsText = canvas.append("text")
+        .attr("x", 150)
+        .attr("y", 765)
+        .style("font-size", "14px")
+        .text("Number of Results On Each Page:")
+
+  var factorsText = canvas.append("text")
+        .attr("x", 1025)
+        .attr("y", 100)
+        .style("font-size", "20px")
+        .text("Factor Weightings")
+
+	var yaxis1 = canvas.append("line")
+				.attr("x1", 70)
+				.attr("y1", 150)
+				.attr("x2", 70)
+				.attr("y2", 250)
+				.attr("stroke", "black")
+				.attr("stroke-width", 2)
+
+	var xaxis1 = canvas.append("line")
+				.attr("x1", 70)
+				.attr("y1", 250)
+				.attr("x2", 870)
+				.attr("y2", 250)
+				.attr("stroke", "black")
+				.attr("stroke-width", 2)
+
+	var labelaxis1 = canvas.append("text")
+					.attr("fill", "black")
+					.attr("x", 200)
+					.attr("y", 280)
+					.text("Author Credibility")
+					.style("font-size", "20px")
+
+	var yaxis2 = canvas.append("line")
+				.attr("x1", 70)
+				.attr("y1", 350)
+				.attr("x2", 70)
+				.attr("y2", 450)
+				.attr("stroke", "black")
+				.attr("stroke-width", 2)
+
+	var xaxis2 = canvas.append("line")
+				.attr("x1", 70)
+				.attr("y1", 450)
+				.attr("x2", 870)
+				.attr("y2", 450)
+				.attr("stroke", "black")
+				.attr("stroke-width", 2)
+
+	var labelaxis2 = canvas.append("text")
+				.attr("fill", "black")
+				.attr("x", 200)
+				.attr("y", 480)
+				.text("Tweet Credibility")
+				.style("font-size", "20px")
+
+	var yaxis3 = canvas.append("line")
+				.attr("x1", 70)
+				.attr("y1", 550)
+				.attr("x2", 70)
+				.attr("y2", 650)
+				.attr("stroke", "black")
+				.attr("stroke-width", 2)
+
+	var xaxis3 = canvas.append("line")
+				.attr("x1", 70)
+				.attr("y1", 650)
+				.attr("x2", 870)
+				.attr("y2", 650)
+				.attr("stroke", "black")
+				.attr("stroke-width", 2)
+
+
+	var labelaxis3 = canvas.append("text")
+			.attr("fill", "black")
+			.attr("x", 200)
+			.attr("y", 680)
+			.text("Quality of Writing")
+			.style("font-size", "20px")
+        
+    var drag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", dragmove);
+
+    var drag2 = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", dragmove2);
+
+    var drag3 = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", dragmove3);
+
+    var AweightDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", AweightMove);
+
+    var TweightDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", TweightMove);
+
+    var WweightDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", WweightMove);
+
+    var picFactorDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", picFactorMove);
+
+    var verFactorDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", verFactorMove);
+
+    var folFactorDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", folFactorMove);
+
+    var desFactorDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", desFactorMove);
+
+    var likeFactorDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", likeFactorMove);
+
+    var retFactorDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", retFactorMove);
+
+    var urlFactorDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", urlFactorMove);
+
+    var spelFactorDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", spelFactorMove);
+
+    var gramFactorDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", gramFactorMove);
+
+    var complFactorDrag = d3.behavior.drag()
+      .origin(function(d) { return d; })
+      .on("drag", complFactorMove);
+
+    // AUTHOR MIN SLIDER
+    
+    var line = canvas.append("line")
+      .attr("y1", y1)
+      .attr("y2", y2)
+      .attr("x1", x)
+      .attr("x2", x)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 5);
+
+    var circle = canvas.append("circle")
+      .attr("r", radius)
+      .attr("cy", function(d) { authorMin = d.y; return d.y; })
+      .attr("cx", function(d) { return d.x; })
+      .style("cursor", "ew-resize")
+      .call(drag);
+
+    var filterMin = canvas.append("text")
+  	.attr("x", 40)
+    .attr("y", height/2)
+    .style("font-size", "12px")
+    .text("50%")
+
+    // TWEET MIN SLIDER
+
+    var line2 = canvas.append("line")
+      .attr("y1", y1+200)
+      .attr("y2", y2+200)
+      .attr("x1", x)
+      .attr("x2", x)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 5);
+
+    var circle2 = canvas.append("circle")
+      .attr("r", radius)
+      .attr("cy", function(d) { tweetMin = d.y2; return (d.y2); })
+      .attr("cx", function(d) { return d.x; })
+      .style("cursor", "ew-resize")
+      .call(drag2);
+
+    var filterMin2 = canvas.append("text")
+  	.attr("x", 40)
+    .attr("y", (height/2)+200)
+    .style("font-size", "12px")
+    .text("50%")
+
+    // WRITING MIN SLIDER
+
+    var line3 = canvas.append("line")
+      .attr("y1", y1+400)
+      .attr("y2", y2+400)
+      .attr("x1", x)
+      .attr("x2", x)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 5);
+
+    var circle3 = canvas.append("circle")
+      .attr("r", radius)
+      .attr("cy", function(d) { writingMin = d.y3; return (d.y3); })
+      .attr("cx", function(d) { return d.x; })
+      .style("cursor", "ew-resize")
+      .call(drag3);
+
+    var filterMin3 = canvas.append("text")
+  	.attr("x", 40)
+    .attr("y", (height/2)+400)
+    .style("font-size", "12px")
+    .text("50%")
+
+    // AUTHOR WEIGHT
+
+    var AWeightLine = canvas.append("line")
+      .attr("y1", 275)
+      .attr("y2", 275)
+      .attr("x1", 400)
+      .attr("x2", 800)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 5);
+
+    var AWeightCir = canvas.append("circle")
+      .attr("r", radius)
+      .attr("cy", function(d) { return d.mainWeighty; })
+      .attr("cx", 532)
+      .style("cursor", "ew-resize")
+      .call(AweightDrag);
+
+    var AWeightText = canvas.append("text")
+    	.attr("x", 600)
+    	.attr("y", function(d) { return d.mainWeighty+25; })
+    	.style("font-size", "12px")
+    	.text("33%")
+
+    // TWEET WEIGHT
+
+    var TWeightLine = canvas.append("line")
+      .attr("y1", 475)
+      .attr("y2", 475)
+      .attr("x1", 400)
+      .attr("x2", 800)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 5);
+
+    var TWeightCir = canvas.append("circle")
+      .attr("r", radius)
+      .attr("cy", function(d) { return d.mainWeighty2; })
+      .attr("cx", 532)
+      .style("cursor", "ew-resize")
+      .call(TweightDrag);
+
+    var TWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.mainWeightx; })
+      .attr("y", function(d) { return d.mainWeighty2+25; })
+      .style("font-size", "12px")
+      .text("33%")
+
+    // WRITING WEIGHT
+
+    var WWeightLine = canvas.append("line")
+      .attr("y1", 675)
+      .attr("y2", 675)
+      .attr("x1", 400)
+      .attr("x2", 800)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 5);
+
+    var WWeightCir = canvas.append("circle")
+      .attr("r", radius)
+      .attr("cy", function(d) { return d.mainWeighty3; })
+      .attr("cx", 532)
+      .style("cursor", "ew-resize")
+      .call(WweightDrag);
+
+    var WWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.mainWeightx; })
+      .attr("y", function(d) { return d.mainWeighty3+25; })
+      .style("font-size", "12px")
+      .text("33%")
+
+    // PICTURE WEIGHT
+
+    var PicWeightLine = canvas.append("line")
+      .attr("y1", 140)
+      .attr("y2", 140)
+      .attr("x1", 900)
+      .attr("x2", 1300)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 2);
+
+    var PicWeightCircle = canvas.append("circle")
+      .attr("r", radiusSmall)
+      .attr("cy", 140)
+      .attr("cx", 1000)
+      .style("cursor", "ew-resize")
+      .call(picFactorDrag);
+
+   	var PicLabel = canvas.append("text")
+	  .attr("fill", "black")
+	  .attr("x", 1320)
+	  .attr("y", 145)
+    .text("Default Profile Picture")
+	  .style("font-size", "12px")
+
+    var PicWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.factorWeightx; })
+      .attr("y", 160)
+      .style("font-size", "11px")
+      .text("25%")
+
+    // VERIFIED WEIGHT
+
+    var VerWeightLine = canvas.append("line")
+      .attr("y1", 180)
+      .attr("y2", 180)
+      .attr("x1", 900)
+      .attr("x2", 1300)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 2);
+
+    var VerWeightCircle = canvas.append("circle")
+      .attr("r", radiusSmall)
+      .attr("cy", 180)
+      .attr("cx", 1000)
+      .style("cursor", "ew-resize")
+      .call(verFactorDrag);
+
+    var VerLabel = canvas.append("text")
+	  .attr("fill", "black")
+	  .attr("x", 1320)
+	  .attr("y", 185)
+      .text("User Verified")
+	  .style("font-size", "12px")
+
+    var VerWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.factorWeightx; })
+      .attr("y", 200)
+      .style("font-size", "11px")
+      .text("25%")
+
+
+    // FOLLOWERS WEIGHT
+
+    var FolWeightLine = canvas.append("line")
+      .attr("y1", 220)
+      .attr("y2", 220)
+      .attr("x1", 900)
+      .attr("x2", 1300)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 2);
+
+    var FolWeightCircle = canvas.append("circle")
+      .attr("r", radiusSmall)
+      .attr("cy", 220)
+      .attr("cx", 1000)
+      .style("cursor", "ew-resize")
+      .call(folFactorDrag);
+
+    var FolLabel = canvas.append("text")
+	  .attr("fill", "black")
+	  .attr("x", 1320)
+	  .attr("y", 225)
+      .text("Number of Followers")
+	  .style("font-size", "12px")
+
+    var FolWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.factorWeightx; })
+      .attr("y", 240)
+      .style("font-size", "11px")
+      .text("25%")
+
+
+    // DESCRIPTION WEIGHT
+
+    var DesWeightLine = canvas.append("line")
+      .attr("y1", 260)
+      .attr("y2", 260)
+      .attr("x1", 900)
+      .attr("x2", 1300)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 2);
+
+    var DesWeightCircle = canvas.append("circle")
+      .attr("r", radiusSmall)
+      .attr("cy", 260)
+      .attr("cx", 1000)
+      .style("cursor", "ew-resize")
+      .call(desFactorDrag);
+
+    var DesLabel = canvas.append("text")
+	  .attr("fill", "black")
+	  .attr("x", 1320)
+	  .attr("y", 265)
+      .text("User Description")
+	  .style("font-size", "12px")
+
+    var DesWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.factorWeightx; })
+      .attr("y", 280)
+      .style("font-size", "11px")
+      .text("25%")
+
+
+    // LIKES WEIGHT
+
+    var LikeWeightLine = canvas.append("line")
+      .attr("y1", 350)
+      .attr("y2", 350)
+      .attr("x1", 900)
+      .attr("x2", 1300)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 2);
+
+    var LikeWeightCircle = canvas.append("circle")
+      .attr("r", radiusSmall)
+      .attr("cy", 350)
+      .attr("cx", 1033)
+      .style("cursor", "ew-resize")
+      .call(likeFactorDrag);
+
+   	var LikeLabel = canvas.append("text")
+	  .attr("fill", "black")
+	  .attr("x", 1320)
+	  .attr("y", 355)
+      .text("Likes")
+	  .style("font-size", "12px")
+
+    var LikeWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.factorWeightx; })
+      .attr("y", 370)
+      .style("font-size", "11px")
+      .text("33%")
+    
+
+    // RETWEETS WEIGHT
+
+    var RetWeightLine = canvas.append("line")
+      .attr("y1", 400)
+      .attr("y2", 400)
+      .attr("x1", 900)
+      .attr("x2", 1300)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 2);
+
+    var RetWeightCircle = canvas.append("circle")
+      .attr("r", radiusSmall)
+      .attr("cy", 400)
+      .attr("cx", 1033)
+      .style("cursor", "ew-resize")
+      .call(retFactorDrag);
+
+    var RetLabel = canvas.append("text")
+	  .attr("fill", "black")
+	  .attr("x", 1320)
+	  .attr("y", 405)
+      .text("Retweets")
+	  .style("font-size", "12px")
+
+    var RetWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.factorWeightx; })
+      .attr("y", 420)
+      .style("font-size", "11px")
+      .text("33%")
+
+    // URL WEIGHT
+
+	var UrlWeightLine = canvas.append("line")
+      .attr("y1", 450)
+      .attr("y2", 450)
+      .attr("x1", 900)
+      .attr("x2", 1300)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 2);
+
+    var UrlWeightCircle = canvas.append("circle")
+      .attr("r", radiusSmall)
+      .attr("cy", 450)
+      .attr("cx", 1033)
+      .style("cursor", "ew-resize")
+      .call(urlFactorDrag);
+
+    var UrlLabel = canvas.append("text")
+	  .attr("fill", "black")
+	  .attr("x", 1320)
+	  .attr("y", 455)
+      .text("Presence of URL")
+	  .style("font-size", "12px")
+
+    var UrlWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.factorWeightx; })
+      .attr("y", 470)
+      .style("font-size", "11px")
+      .text("33%")
+
+    // SPELLING WEIGHT
+
+  	var SpelWeightLine = canvas.append("line")
+      .attr("y1", 550)
+      .attr("y2", 550)
+      .attr("x1", 900)
+      .attr("x2", 1300)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 2);
+
+    var SpelWeightCircle = canvas.append("circle")
+      .attr("r", radiusSmall)
+      .attr("cy", 550)
+      .attr("cx", 1033)
+      .style("cursor", "ew-resize")
+      .call(spelFactorDrag);
+
+    var SpelLabel = canvas.append("text")
+	  .attr("fill", "black")
+	  .attr("x", 1320)
+	  .attr("y", 555)
+      .text("Spelling")
+	  .style("font-size", "12px")
+
+    var SpelWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.factorWeightx; })
+      .attr("y", 570)
+      .style("font-size", "11px")
+      .text("33%")
+
+    // GRAMMAR WEIGHT
+
+   	var GramWeightLine = canvas.append("line")
+      .attr("y1", 600)
+      .attr("y2", 600)
+      .attr("x1", 900)
+      .attr("x2", 1300)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 2);
+
+    var GramWeightCircle = canvas.append("circle")
+      .attr("r", radiusSmall)
+      .attr("cy", 600)
+      .attr("cx", 1033)
+      .style("cursor", "ew-resize")
+      .call(gramFactorDrag);
+
+    var GramLabel = canvas.append("text")
+	  .attr("fill", "black")
+	  .attr("x", 1320)
+	  .attr("y", 605)
+      .text("Grammar")
+	  .style("font-size", "12px")
+
+    var GramWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.factorWeightx; })
+      .attr("y", 620)
+      .style("font-size", "11px")
+      .text("33%")
+
+    // COMPLEXITY WEIGHT
+
+    var ComplWeightLine = canvas.append("line")
+      .attr("y1", 650)
+      .attr("y2", 650)
+      .attr("x1", 900)
+      .attr("x2", 1300)
+      .style("stroke", "black")
+      .style("stroke-linecap", "round")
+      .style("stroke-width", 2);
+
+    var ComplWeightCircle = canvas.append("circle")
+      .attr("r", radiusSmall)
+      .attr("cy", 650)
+      .attr("cx", 1033)
+      .style("cursor", "ew-resize")
+      .call(complFactorDrag);
+
+    var ComplLabel = canvas.append("text")
+	  .attr("fill", "black")
+	  .attr("x", 1320)
+	  .attr("y", 655)
+      .text("Syntactic Complexity")
+	  .style("font-size", "12px")
+
+    var ComplWeightText = canvas.append("text")
+      .attr("x", function(d) { return d.factorWeightx; })
+      .attr("y", 670)
+      .style("font-size", "11px")
+      .text("33%")
+
+    var color = d3.scale.linear()
+            .domain([0,1,2,3,4,5,6,10,15,20,100])
+            .range(["#ddd", "#ccc", "#bbb", "#aaa", "#999", "#888", "#777", "#666", "#555", "#444", "#333", "#222"]);
+
+    d3.layout.cloud().size([800, 300])
+            .words(listOfWords)
+            .rotate(0)
+            .fontSize(function(d) { return d.size; })
+            .on("end", draw)
+            .start();
+
+    // DRAG FUNCTIONS
+    
+    function dragmove(d) {
+      var y = d3.event.y;
+      y = y < y1 ? y1 : y > y2 ? y2 : y;
+      d.y = y;
+      circle.attr("cy", y);
+      var value = circle.attr("cy");
+      authorMin = (y2-value)/(y2-y1);
+      filterMin.text(~~(100*(y2-value)/(y2-y1)) + "%");
+    }
+
+     
+    function dragmove2(d) {
+      var y = d3.event.y;
+      y = y < y1+200 ? y1+200 : y > y2+200 ? y2+200 : y;
+      d.y = y;
+      circle2.attr("cy", y);
+      var value = circle2.attr("cy");
+      tweetMin = ((y2+200)-value)/((y2+200)-(y1+200));
+      filterMin2.text(~~(100*((y2+200)-value)/((y2+200)-(y1+200))) + "%");
+    }
+
+    function dragmove3(d) {
+      var y = d3.event.y;
+      y = y < y1+400 ? y1+400 : y > y2+400 ? y2+400 : y;
+      d.y = y;
+      circle3.attr("cy", y);
+      var value = circle3.attr("cy");
+      writingMin = ((y2+400)-value)/((y2+400)-(y1+400))
+      filterMin3.text(~~(100*((y2+400)-value)/((y2+400)-(y1+400))) + "%");
+    }
+
+    function AweightMove(d){
+      var x = d3.event.x;
+      x = x < mainWeightx-200 ? mainWeightx-200 : x > mainWeightx+200 ? mainWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      var authorNoRound = (value-(mainWeightx-200))/((mainWeightx+200)-(mainWeightx-200));
+      authorWeight = Math.round(authorNoRound * 100) / 100;
+      if ((authorWeight - authorNoRound) > 0)
+      {
+        authorWeight -= 0.01;
+      }
+      AWeightText.text(~~(100*(value-(mainWeightx-200))/((mainWeightx+200)-(mainWeightx-200))) + "%");
+    }
+
+    function TweightMove(d) {
+      var x = d3.event.x;
+      x = x < mainWeightx-200 ? mainWeightx-200 : x > mainWeightx+200 ? mainWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      var tweetNoRound = (value-(mainWeightx-200))/((mainWeightx+200)-(mainWeightx-200));
+      tweetWeight = Math.round(tweetNoRound * 100) / 100;
+      if ((tweetWeight - tweetNoRound) > 0)
+      {
+        tweetWeight -= 0.01;
+      }
+      TWeightText.text(~~(100*(value-(mainWeightx-200))/((mainWeightx+200)-(mainWeightx-200))) + "%");
+    
+    }
+
+    function WweightMove(d) {
+      var x = d3.event.x;
+      x = x < mainWeightx-200 ? mainWeightx-200 : x > mainWeightx+200 ? mainWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      var writingNoRound = (value-(mainWeightx-200))/((mainWeightx+200)-(mainWeightx-200));
+      writingWeight = Math.round(writingNoRound * 100) / 100;
+      if ((writingWeight - writingNoRound) > 0)
+      {
+        writingWeight -= 0.01;
+      }
+      WWeightText.text(~~(100*(value-(mainWeightx-200))/((mainWeightx+200)-(mainWeightx-200))) + "%");
+    }
+
+
+    function picFactorMove(d) {
+      var x = d3.event.x;
+      x = x < factorWeightx-200 ? factorWeightx-200 : x > factorWeightx+200 ? factorWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      picNoRound = (value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200));
+      picWeight = Math.round(picNoRound * 100) / 100;
+      if ((picWeight - picNoRound) > 0)
+      {
+        picWeight -= 0.01;
+      }
+      PicWeightText.text(~~(100*(value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200))) + "%");
+    }
+
+    function verFactorMove(d) {
+      var x = d3.event.x;
+      x = x < factorWeightx-200 ? factorWeightx-200 : x > factorWeightx+200 ? factorWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      verNoRound = (value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200));
+      verWeight = Math.round(verNoRound * 100) / 100;
+      if ((verWeight - verNoRound) > 0)
+      {
+        verWeight -= 0.01;
+      }
+      VerWeightText.text(~~(100*(value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200))) + "%");
+    }
+
+    function folFactorMove(d) {
+      var x = d3.event.x;
+      x = x < factorWeightx-200 ? factorWeightx-200 : x > factorWeightx+200 ? factorWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      followersNoRound = (value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200));
+      followersWeight = Math.round(followersNoRound * 100) / 100;
+      if ((followersWeight - followersNoRound) > 0)
+      {
+        followersWeight -= 0.01;
+      }
+      FolWeightText.text(~~(100*(value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200))) + "%");
+    }
+
+    function desFactorMove(d) {
+      var x = d3.event.x;
+      x = x < factorWeightx-200 ? factorWeightx-200 : x > factorWeightx+200 ? factorWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      descripNoRound = (value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200));
+      descripWeight = Math.round(descripNoRound * 100) / 100;
+      if ((descripWeight - descripNoRound) > 0)
+      {
+        descripWeight -= 0.01;
+      }
+      DesWeightText.text(~~(100*(value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200))) + "%");
+    }
+
+    function likeFactorMove(d) {
+      var x = d3.event.x;
+      x = x < factorWeightx-200 ? factorWeightx-200 : x > factorWeightx+200 ? factorWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      likeNoRound = (value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200));
+      likeWeight = Math.round(likeNoRound * 100) / 100;
+      if ((likeWeight - likeNoRound) > 0)
+      {
+        likeWeight -= 0.01;
+      }
+      LikeWeightText.text(~~(100*(value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200))) + "%");
+    }
+
+    function retFactorMove(d) {
+      var x = d3.event.x;
+      x = x < factorWeightx-200 ? factorWeightx-200 : x > factorWeightx+200 ? factorWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      retweetNoRound = (value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200));
+      retweetWeight = Math.round(retweetNoRound * 100) / 100;
+      if ((retweetWeight - retweetNoRound) > 0)
+      {
+        retweetWeight -= 0.01;
+      }
+      RetWeightText.text(~~(100*(value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200))) + "%");
+    }
+
+    function urlFactorMove(d) {
+      var x = d3.event.x;
+      x = x < factorWeightx-200 ? factorWeightx-200 : x > factorWeightx+200 ? factorWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      urlNoRound = (value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200));
+      urlWeight = Math.round(urlNoRound * 100) / 100;
+      if ((urlWeight - urlNoRound) > 0)
+      {
+        urlWeight -= 0.01;
+      }
+      UrlWeightText.text(~~(100*(value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200))) + "%");
+    }
+
+    function spelFactorMove(d) {
+      var x = d3.event.x;
+      x = x < factorWeightx-200 ? factorWeightx-200 : x > factorWeightx+200 ? factorWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      spellingNoRound = (value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200));
+      spellingWeight = Math.round(spellingNoRound * 100) / 100;
+      if ((spellingWeight - spellingNoRound) > 0)
+      {
+        spellingWeight -= 0.01;
+      }
+      SpelWeightText.text(~~(100*(value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200))) + "%");
+    }
+
+    function gramFactorMove(d) {
+      var x = d3.event.x;
+      x = x < factorWeightx-200 ? factorWeightx-200 : x > factorWeightx+200 ? factorWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      grammarNoRound = (value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200));
+      grammarWeight = Math.round(grammarNoRound * 100) / 100;
+      if ((grammarWeight - grammarNoRound) > 0)
+      {
+        grammarWeight -= 0.01;
+      }
+      GramWeightText.text(~~(100*(value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200))) + "%");
+    }
+
+    function complFactorMove(d) {
+      var x = d3.event.x;
+      x = x < factorWeightx-200 ? factorWeightx-200 : x > factorWeightx+200 ? factorWeightx+200 : x;
+      d.x = x;
+      d3.select(this).attr("cx", x);
+      var value = d3.select(this).attr("cx");
+      complexNoRound = (value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200));
+      complexWeight = Math.round(complexNoRound * 100) / 100;
+      if ((complexWeight - complexNoRound) > 0)
+      {
+        complexWeight -= 0.01;
+      }
+      ComplWeightText.text(~~(100*(value-(factorWeightx-200))/((factorWeightx+200)-(factorWeightx-200))) + "%");
+    }
+
+    function checkWeights()
+    {
+
+      var message = "";
+
+      if (authorWeight + tweetWeight + writingWeight != 1)
+      {
+          message = message + "Main weightings do not add to 100%.";
+      }
+      if (followersWeight + picWeight + descripWeight + verWeight != 0.99 && followersWeight + picWeight + descripWeight + verWeight != 1)
+      {
+          message  = message + " User weightings do not add to 100%";
+      }
+      if (urlWeight + likeWeight + retweetWeight != 0.99 && urlWeight + likeWeight + retweetWeight != 1)
+      {
+          message = message + " Tweet weightings do not add to 100%";
+      }
+      if (grammarWeight + complexWeight + spellingWeight != 0.99 && grammarWeight + complexWeight + spellingWeight != 1)
+      {
+          message = message + " Grammar weightings do not add to 100%";
+      }
+
+      if (message != "")
+      {
+        console.log(message);
+        return false
+      }
+
+      else
+      {
+        console.log("all good!");
+        return true;
+      }
+
+    }
+
+    function defaultWeights()
+    {
+      AWeightCir.attr("cx", 532);
+      AWeightText.text("33%");
+      TWeightCir.attr("cx", 532);
+      TWeightText.text("33%");
+      WWeightCir.attr("cx", 532);
+      WWeightText.text("33%");
+      PicWeightCircle.attr("cx", 1000);
+      PicWeightText.text("25%");
+      VerWeightCircle.attr("cx", 1000);
+      VerWeightText.text("25%");
+      FolWeightCircle.attr("cx", 1000);
+      FolWeightText.text("25%");
+      DesWeightCircle.attr("cx", 1000);
+      DesWeightText.text("25%");
+      LikeWeightCircle.attr("cx", 1000);
+      LikeWeightText.text("25%");
+      RetWeightCircle.attr("cx", 1000);
+      RetWeightText.text("25%");
+      UrlWeightCircle.attr("cx", 1000);
+      UrlWeightText.text("25%");
+      SpelWeightCircle.attr("cx", 1000);
+      SpelWeightText.text("25%");
+      GramWeightCircle.attr("cx", 1000);
+      GramWeightText.text("25%");
+      ComplWeightCircle.attr("cx", 1000);
+      ComplWeightText.text("25%");
+    }
+    // Returns the path for a given data point.
+function path(d) {
+  return line(dimensions.map(function(p) { return [position(p), y[p](d[p])]; }));
+}
+
+function brushstart() {
+  d3.event.sourceEvent.stopPropagation();
+}
+
+    function draw(words) {
+        canvas.attr("class", "wordcloud")
+                .append("cloudcloud")
+                // .attr("transform", "translate(1020,600)")
+                .selectAll("text")
+                .data(words)
+                .enter().append("text")
+                .style("font-size", function(d) { return d.size + "px"; })
+                .style("fill", function(d, i) { return color(i); })
+                // .attr("transform", function(d) {
+                //     return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
+                // })
+                .text(function(d) { return d.text; });
+    }
+
+</script>
+</body>
+</html>
